@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>Hemlock Sample Status (Google Sheet Connected)</title>
+<title>Hemlock Sample Status (Fixed Assay Slots)</title>
 <style>
     table {
         border-collapse: collapse;
@@ -38,7 +37,7 @@
 </style>
 </head>
 <body>
-<h2>Hemlock Sample Status (Live from Google Sheet)</h2>
+<h2>Hemlock Sample Status (Fixed 5 Assay Dots)</h2>
 <table id="status-table">
     <thead><tr><th>Timepoint</th><th>AA</th><th>PA</th></tr></thead>
     <tbody></tbody>
@@ -57,6 +56,7 @@
 </div>
 
 <script>
+const ASSAYS = ["GCMS_HS", "GCMS_LIQ", "LCMS_LEAF", "LCMS_STEM", "NMR"];
 const colorMap = {
     "GCMS_HS": "#3f007d",
     "GCMS_LIQ": "#9e9ac8",
@@ -68,31 +68,46 @@ const colorMap = {
 fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vTfsBAqZc6V1Cm5vuuwblU5waymJqNFASrMZWfaY3uN0LACMT9Y0UGE3Wr1DQ4DIcOISWlPDt_CtR08/pub?output=csv")
   .then(response => response.text())
   .then(csv => {
-    const lines = csv.trim().split("\n").map(row => row.split(","));
+    const lines = csv.trim().split("\\n").map(row => row.split(","));
     const headers = lines.shift();
     const [TIMEPOINT, LOCATION, ASSAY, COMPLETE, TOTAL] = headers;
     const matrix = {};
 
     for (const [tp, loc, assay, done, total] of lines) {
-        if (!matrix[tp]) matrix[tp] = { AA: [], PA: [] };
-        const complete = parseInt(done);
-        const required = parseInt(total);
-        let dot;
-        if (complete === 0) {
-            dot = `<span class='dot pending-dot' title='${assay}: 0 / ${required}'></span>`;
-        } else if (complete < required) {
-            dot = `<span class='dot partial-dot' style='border-color: ${colorMap[assay]}' title='${assay}: ${complete} / ${required}'></span>`;
-        } else {
-            dot = `<span class='dot' style='background-color: ${colorMap[assay]}' title='${assay}: ${complete} / ${required}'></span>`;
-        }
-        matrix[tp][loc].push(dot);
+        if (!matrix[tp]) matrix[tp] = { AA: {}, PA: {} };
+        matrix[tp][loc][assay] = { complete: parseInt(done), total: parseInt(total) };
     }
 
     const tbody = document.querySelector("#status-table tbody");
     for (const tp in matrix) {
         const row = document.createElement("tr");
-        row.innerHTML = `<td>${tp}</td><td>${matrix[tp].AA.join("")}</td><td>${matrix[tp].PA.join("")}</td>`;
+        let aaDots = "";
+        let paDots = "";
+
+        for (const assay of ASSAYS) {
+            const aaVal = matrix[tp].AA?.[assay];
+            aaDots += getDotHTML(assay, aaVal);
+
+            const paVal = matrix[tp].PA?.[assay];
+            paDots += getDotHTML(assay, paVal);
+        }
+
+        row.innerHTML = `<td>${tp}</td><td>${aaDots}</td><td>${paDots}</td>`;
         tbody.appendChild(row);
+    }
+
+    function getDotHTML(assay, data) {
+        if (!data) return "<span class='dot' style='visibility: hidden;'></span>";
+        const color = colorMap[assay];
+        const { complete, total } = data;
+
+        if (complete === 0) {
+            return `<span class='dot pending-dot' title='${assay}: 0 / ${total}'></span>`;
+        } else if (complete < total) {
+            return `<span class='dot partial-dot' style='border-color: ${color}' title='${assay}: ${complete} / ${total}'></span>`;
+        } else {
+            return `<span class='dot' style='background-color: ${color}' title='${assay}: ${complete} / ${total}'></span>`;
+        }
     }
   })
   .catch(err => console.error("Failed to load data:", err));
