@@ -41,6 +41,16 @@
     .control-buttons {
         margin-top: 8px;
     }
+    #assay-toast {
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+    .dot-tooltip {
+    pointer-events: none;
+}
+
+
+    
 </style>
 </head>
 <body>
@@ -83,7 +93,40 @@ window.addEventListener("DOMContentLoaded", () => {
     };
     
     let assayStats = {};
+
+    function showAssayAlert(content) {
+    const active = document.querySelector(".dot-tooltip");
+    if (active) active.remove();
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "dot-tooltip";
+    tooltip.textContent = content;
+    tooltip.style.position = "absolute";
+    tooltip.style.background = "#333";
+    tooltip.style.color = "#fff";
+    tooltip.style.padding = "4px 8px";
+    tooltip.style.borderRadius = "4px";
+    tooltip.style.fontSize = "12px";
+    tooltip.style.whiteSpace = "nowrap";
+    tooltip.style.zIndex = 1000;
+    tooltip.style.transform = "translateY(-24px)";
     
+    document.body.appendChild(tooltip);
+
+    document.addEventListener("click", function removeTooltip(e) {
+        if (!tooltip.contains(e.target)) {
+            tooltip.remove();
+            document.removeEventListener("click", removeTooltip);
+        }
+    });
+
+    // find the clicked element
+    const target = event.target;
+    const rect = target.getBoundingClientRect();
+    tooltip.style.left = rect.left + window.scrollX + "px";
+    tooltip.style.top = rect.top + window.scrollY + "px";
+}
+ 
     document.getElementById("csvFile").addEventListener("change", function (e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -96,7 +139,7 @@ window.addEventListener("DOMContentLoaded", () => {
         reader.readAsText(file);
     });
     
-    function renderTableFromCSV(csv) {
+function renderTableFromCSV(csv) {
         const lines = csv.trim().split("\n");
         const delimiter = lines[0].includes("\t") ? "\t" : ",";
         const parsed = lines.map(line => line.split(delimiter));
@@ -128,31 +171,34 @@ window.addEventListener("DOMContentLoaded", () => {
             if (!loc) continue;
             if (!matrix[tp]) matrix[tp] = {};
             matrix[tp][loc] = assays.map((val, idx) => {
-                const name = ASSAYS[idx];
-                const color = colorMap[name];
-                val = val.toLowerCase();
-                if (val === "pending") {
-                    assayStats[name].pending++;
-                    assayStats[name].total++;
-                    return "<span class='dot pending-dot' title='" + name + ": pending'></span>";
-                } else if (val.includes("/")) {
-                    const [complete, total] = val.split("/").map(x => parseInt(x));
-                    assayStats[name].total++;
-                    if (complete === 0) {
-                        assayStats[name].pending++;
-                        return "<span class='dot pending-dot' title='" + name + ": 0 / " + total + "'></span>";
-                    } else if (complete < total) {
-                        assayStats[name].partial++;
-                        return "<span class='dot partial-dot' style='border-color: " + color + "' title='" + name + ": " + complete + " / " + total + "'></span>";
-                    } else {
-                        assayStats[name].completed++;
-                        return "<span class='dot' style='background-color: " + color + "' title='" + name + ": " + complete + " / " + total + "'></span>";
-                    }
-                } else {
-                    return "<span class='dot' style='visibility: hidden;'></span>";
-                }
-            });
+    const name = ASSAYS[idx];
+    const color = colorMap[name];
+    val = val.toLowerCase();
+    if (val === "pending") {
+        assayStats[name].pending++;
+        assayStats[name].total++;
+
+        const label = `${name}: 0 / 1`;
+        return `<span class="dot pending-dot" onclick="togglePopup(event, '${label}')"></span>`;
+    } else if (val.includes("/")) {
+        const [complete, total] = val.split("/").map(x => parseInt(x));
+        const label = `${name}: ${complete} / ${total}`;
+        assayStats[name].total++;
+
+        if (complete === 0) {
+            assayStats[name].pending++;
+            return `<span class="dot pending-dot" onclick="togglePopup(event, '${label}')"></span>`;
+        } else if (complete < total) {
+            assayStats[name].partial++;
+            return `<span class="dot partial-dot" style="border-color: ${color};" onclick="togglePopup(event, '${label}')"></span>`;
+        } else {
+            assayStats[name].completed++;
+            return `<span class="dot" style="background-color: ${color};" onclick="togglePopup(event, '${label}')"></span>`;
         }
+    } else {
+        return `<span class="dot" style="visibility: hidden;"></span>`;
+    }
+}); 
     
         const sortedTPs = Array.from(allTPs).sort((a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/)));
         const locs = Array.from(allLocs).sort();
@@ -175,8 +221,7 @@ window.addEventListener("DOMContentLoaded", () => {
         updateLocationSummaryDetailed(rawRows);
         updateLocationAndTimeSummary(rawRows);
     }
-    
-   // ... 保留前面原有脚本内容 ...
+}  
 
 function updateLocationSummaryDetailed(rawRows) {
     const locationStats = {};
@@ -365,6 +410,39 @@ window.addEventListener("DOMContentLoaded", () => {
     exportButton.onclick = exportAsImage;
     document.querySelector("div[style*='margin-top: 10px']")?.appendChild(exportButton);
 });
-  
-    </script>
-    
+
+function togglePopup(event, content) {
+    event.stopPropagation();
+    removeExistingPopup();
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "dot-tooltip";
+    tooltip.textContent = content;
+    tooltip.style.position = "absolute";
+    tooltip.style.background = "#333";
+    tooltip.style.color = "#fff";
+    tooltip.style.padding = "4px 8px";
+    tooltip.style.borderRadius = "4px";
+    tooltip.style.fontSize = "12px";
+    tooltip.style.whiteSpace = "nowrap";
+    tooltip.style.zIndex = 1000;
+
+    document.body.appendChild(tooltip);
+
+    const rect = event.target.getBoundingClientRect();
+    tooltip.style.left = rect.left + window.scrollX + "px";
+    tooltip.style.top = rect.top + window.scrollY - 30 + "px";
+
+    document.addEventListener("click", function removeTooltipOnce() {
+        tooltip.remove();
+        document.removeEventListener("click", removeTooltipOnce);
+    }, { once: true });
+}
+
+function removeExistingPopup() {
+    const old = document.querySelector(".dot-tooltip");
+    if (old) old.remove();
+}
+
+
+</script>
