@@ -48,6 +48,10 @@
     .dot-tooltip {
     pointer-events: none;
 }
+    .not-started-dot {
+    border: 2px dashed #aaa;
+    background: transparent;
+}
 
 
     
@@ -63,9 +67,14 @@
   </table>
   <div style="margin-top: 20px;">
     <div><strong>Legend:</strong></div>
+
     <div style="margin: 6px 0 12px 0;">
-      ● = Completed  ○ = Partially Completed  <span class="dot pending-dot" style="vertical-align: middle;"></span> = Pending
-    </div>
+        <span class="dot" style="background: #ccc;"></span> = Completed 
+        <span class="dot partial-dot" style="border-color: #ccc;"></span> = Partial 
+        <span class="dot pending-dot"></span> = Pending 
+        <span class="dot not-started-dot"></span> = Not prepared
+      </div>      
+      
     <div class="control-buttons">
       <button onclick="showLocationSummary()" style="padding: 6px 12px; margin-right: 8px;">📍 Location Summary</button>
       <button onclick="showLocationAndTimeSummary()" style="padding: 6px 12px; margin-right: 8px;">📍🕒 Location + Time Summary</button>
@@ -175,29 +184,48 @@ function renderTableFromCSV(csv) {
     const color = colorMap[name];
     val = val.toLowerCase();
     if (val === "pending") {
+    // 显式标记为 pending 的样本
+    assayStats[name].pending++;
+    assayStats[name].total++;
+
+    const label = `${name}: 0 / 1 (pending)`;
+    return `<span class="dot pending-dot" onclick="togglePopup(event, '${label}')"></span>`;
+} else if (val.includes("/")) {
+    const [rawComplete, rawTotal] = val.split("/");
+    const complete = parseInt(rawComplete);
+    const total = parseInt(rawTotal);
+
+    const safeComplete = isNaN(complete) ? 0 : complete;
+    const safeTotal = isNaN(total) ? 0 : total;
+
+    if (!isNaN(safeTotal)) assayStats[name].total += safeTotal;
+
+    const label = safeComplete === 0 && safeTotal > 0
+        ? `${name}: ${safeComplete} / ${safeTotal} (pending)`
+        : `${name}: ${safeComplete} / ${safeTotal}`;
+
+    if (safeTotal === 0) {
+        // not prepared
+        return `<span class="dot not-started-dot" onclick="togglePopup(event, '${name}: 0 / 0 (not prepared)')"></span>`;
+    } else if (safeComplete === 0) {
+        // pending
         assayStats[name].pending++;
-        assayStats[name].total++;
-
-        const label = `${name}: 0 / 1`;
         return `<span class="dot pending-dot" onclick="togglePopup(event, '${label}')"></span>`;
-    } else if (val.includes("/")) {
-        const [complete, total] = val.split("/").map(x => parseInt(x));
-        const label = `${name}: ${complete} / ${total}`;
-        assayStats[name].total++;
-
-        if (complete === 0) {
-            assayStats[name].pending++;
-            return `<span class="dot pending-dot" onclick="togglePopup(event, '${label}')"></span>`;
-        } else if (complete < total) {
-            assayStats[name].partial++;
-            return `<span class="dot partial-dot" style="border-color: ${color};" onclick="togglePopup(event, '${label}')"></span>`;
-        } else {
-            assayStats[name].completed++;
-            return `<span class="dot" style="background-color: ${color};" onclick="togglePopup(event, '${label}')"></span>`;
-        }
+    } else if (safeComplete < safeTotal) {
+        // partial
+        assayStats[name].partial++;
+        return `<span class="dot partial-dot" style="border-color: ${color};" onclick="togglePopup(event, '${label}')"></span>`;
     } else {
-        return `<span class="dot" style="visibility: hidden;"></span>`;
+        // completed
+        assayStats[name].completed++;
+        return `<span class="dot" style="background-color: ${color};" onclick="togglePopup(event, '${label}')"></span>`;
     }
+} else {
+    return `<span class="dot" style="visibility: hidden;"></span>`;
+}
+
+
+
 }); 
     
         const sortedTPs = Array.from(allTPs).sort((a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/)));
