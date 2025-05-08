@@ -93,7 +93,9 @@ fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vTfsBAqZc6V1Cm5vuuwblU5wa
             const name = ASSAYS[idx];
             const color = colorMap[name];
             let dot = "<span class='dot' style='visibility: hidden;'></span>";
-            if (val.includes("/")) {
+            if (val.toLowerCase() === "pending") {
+                dot = `<span class='dot pending-dot' title='${name}: pending'></span>`;
+            } else if (val.includes("/")) {
                 const [complete, total] = val.split("/").map(x => parseInt(x));
                 if (complete === 0) {
                     dot = `<span class='dot pending-dot' title='${name}: 0 / ${total}'></span>`;
