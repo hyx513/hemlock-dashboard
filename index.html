@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>Hemlock Sample Status (Robust Parser)</title>
+<title>Hemlock Status (Matrix Sheet Format)</title>
 <style>
     table {
         border-collapse: collapse;
@@ -38,7 +38,7 @@
 </style>
 </head>
 <body>
-<h2>Hemlock Sample Status (Robust Parsing)</h2>
+<h2>Hemlock Sample Status (Matrix Format)</h2>
 <table id="status-table">
     <thead><tr><th>Timepoint</th><th>AA</th><th>PA</th></tr></thead>
     <tbody></tbody>
@@ -46,39 +46,13 @@
 
 <div style="margin-top: 30px; font-family: Arial, sans-serif; font-size: 13px;">
 <div><strong>Legend:</strong></div>
-<div style="margin: 6px 0 12px 0;">● = Completed  ○ = Partially Completed  <span class="dot pending-dot" style="vertical-align: middle;"></span> = Pending
+<div style="margin: 6px 0 12px 0;">● = Completed  ○ = Partially Completed  <span class="dot pending-dot" style="vertical-align: middle;"></span> = Pending</div>
 <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin-top: 10px;">
-    <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="width: 90px;">GCMS_HS</span>
-        <span class="dot" style="background-color: #3f007d;"></span>
-        <span class="dot partial-dot" style="border-color: #3f007d;"></span>
-    </div>
-    <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="width: 90px;">GCMS_LIQ</span>
-        <span class="dot" style="background-color: #9e9ac8;"></span>
-        <span class="dot partial-dot" style="border-color: #9e9ac8;"></span>
-    </div>
-    <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="width: 90px;">LCMS_LEAF</span>
-        <span class="dot" style="background-color: #f768a1;"></span>
-        <span class="dot partial-dot" style="border-color: #f768a1;"></span>
-    </div>
-    <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="width: 90px;">LCMS_STEM</span>
-        <span class="dot" style="background-color: #dd3497;"></span>
-        <span class="dot partial-dot" style="border-color: #dd3497;"></span>
-    </div>
-    <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="width: 90px;">NMR</span>
-        <span class="dot" style="background-color: #fdae6b;"></span>
-        <span class="dot partial-dot" style="border-color: #fdae6b;"></span>
-    </div>
-    <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="width: 90px;">Pending</span>
-        <span class="dot pending-dot"></span>
-    </div>
-</div>
-
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">GCMS_HS</span><span class="dot" style="background-color: #3f007d;"></span><span class="dot partial-dot" style="border-color: #3f007d;"></span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">GCMS_LIQ</span><span class="dot" style="background-color: #9e9ac8;"></span><span class="dot partial-dot" style="border-color: #9e9ac8;"></span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">LCMS_LEAF</span><span class="dot" style="background-color: #f768a1;"></span><span class="dot partial-dot" style="border-color: #f768a1;"></span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">LCMS_STEM</span><span class="dot" style="background-color: #dd3497;"></span><span class="dot partial-dot" style="border-color: #dd3497;"></span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">NMR</span><span class="dot" style="background-color: #fdae6b;"></span><span class="dot partial-dot" style="border-color: #fdae6b;"></span></div>
 </div>
 </div>
 
@@ -97,52 +71,49 @@ fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vTfsBAqZc6V1Cm5vuuwblU5wa
   .then(csv => {
     const lines = csv.trim().split("\n");
     const delimiter = lines[0].includes("\t") ? "\t" : ",";
-
     const parsed = lines.map(line => line.split(delimiter));
-    const headers = parsed.shift();
-    const [TIMEPOINT, LOCATION, ASSAY, COMPLETE, TOTAL] = headers.map(h => h.trim());
+    const headers = parsed.shift().map(h => h.trim());
+
+    const TIMEPOINT = headers[0];
+    const LOCATION = headers[1];
+
+    const tbody = document.querySelector("#status-table tbody");
+
     const matrix = {};
 
     for (const row of parsed) {
-        if (row.length < 5) continue;
-        const [tp, loc, assay, done, total] = row.map(v => v.trim());
-        if (!matrix[tp]) matrix[tp] = { AA: {}, PA: {} };
-        matrix[tp][loc][assay] = { complete: parseInt(done), total: parseInt(total) };
+        if (row.length < 3) continue;
+        const tp = row[0].trim();
+        const loc = row[1].trim();
+        const assays = ASSAYS.map((assay, i) => row[i + 2] ? row[i + 2].trim() : "");
+
+        if (!matrix[tp]) matrix[tp] = { AA: [], PA: [] };
+
+        assays.forEach((val, idx) => {
+            const name = ASSAYS[idx];
+            const color = colorMap[name];
+            let dot = "<span class='dot' style='visibility: hidden;'></span>";
+            if (val.includes("/")) {
+                const [complete, total] = val.split("/").map(x => parseInt(x));
+                if (complete === 0) {
+                    dot = `<span class='dot pending-dot' title='${name}: 0 / ${total}'></span>`;
+                } else if (complete < total) {
+                    dot = `<span class='dot partial-dot' style='border-color: ${color}' title='${name}: ${complete} / ${total}'></span>`;
+                } else {
+                    dot = `<span class='dot' style='background-color: ${color}' title='${name}: ${complete} / ${total}'></span>`;
+                }
+            }
+            matrix[tp][loc].push(dot);
+        });
     }
 
-    const tbody = document.querySelector("#status-table tbody");
     for (const tp in matrix) {
         const row = document.createElement("tr");
-        let aaDots = "";
-        let paDots = "";
-
-        for (const assay of ASSAYS) {
-            const aaVal = matrix[tp].AA?.[assay];
-            aaDots += getDotHTML(assay, aaVal);
-
-            const paVal = matrix[tp].PA?.[assay];
-            paDots += getDotHTML(assay, paVal);
-        }
-
-        row.innerHTML = `<td>${tp}</td><td>${aaDots}</td><td>${paDots}</td>`;
+        row.innerHTML = `<td>${tp}</td><td>${matrix[tp].AA.join("")}</td><td>${matrix[tp].PA.join("")}</td>`;
         tbody.appendChild(row);
     }
-
-    function getDotHTML(assay, data) {
-        if (!data) return "<span class='dot' style='visibility: hidden;'></span>";
-        const color = colorMap[assay];
-        const { complete, total } = data;
-
-        if (complete === 0) {
-            return `<span class='dot pending-dot' title='${assay}: 0 / ${total}'></span>`;
-        } else if (complete < total) {
-            return `<span class='dot partial-dot' style='border-color: ${color}' title='${assay}: ${complete} / ${total}'></span>`;
-        } else {
-            return `<span class='dot' style='background-color: ${color}' title='${assay}: ${complete} / ${total}'></span>`;
-        }
-    }
   })
-  .catch(err => console.error("Failed to load data:", err));
+  .catch(err => console.error("Failed to load matrix data:", err));
 </script>
 </body>
 </html>
