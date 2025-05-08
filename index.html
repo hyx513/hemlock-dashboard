@@ -1,96 +1,101 @@
 
 <!DOCTYPE html>
-
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>Hemlock Sample Status (Border Circle Demo)</title>
+<title>Hemlock Sample Status (Google Sheet Connected)</title>
 <style>
-        table {
-            border-collapse: collapse;
-            font-family: Arial, sans-serif;
-            font-size: 13px;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            min-width: 100px;
-            height: auto;
-            padding: 4px;
-            text-align: center;
-            vertical-align: middle;
-        }
-        .dot {
-            box-sizing: border-box;
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            margin: 3px;
-            border-radius: 50%;
-        }
-        .pending-dot {
-            background-color: #ffff33;
-        }
-        .partial-dot {
-            background-color: white;
-            border-width: 2px;
-            border-style: solid;
-        }
-    </style>
+    table {
+        border-collapse: collapse;
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+        margin-top: 20px;
+    }
+    th, td {
+        border: 1px solid #ccc;
+        min-width: 100px;
+        height: auto;
+        padding: 4px;
+        text-align: center;
+        vertical-align: middle;
+    }
+    .dot {
+        box-sizing: border-box;
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        margin: 3px;
+        border-radius: 50%;
+    }
+    .pending-dot {
+        background-color: #ffff33;
+    }
+    .partial-dot {
+        background-color: white;
+        border-width: 2px;
+        border-style: solid;
+    }
+</style>
 </head>
 <body>
-<h2>Hemlock Sample Status (Border Circle for Partial)</h2>
-<table>
-<tr>
-<th>Timepoint</th>
-<th>AA</th>
-<th>PA</th>
-</tr>
-<tr><td>TP8</td><td><span class="dot" style="background-color: #3f007d;" title="GCMS_HS: 65 / 65"></span><span class="dot" style="background-color: #9e9ac8;" title="GCMS_LIQ: 65 / 65"></span><span class="dot partial-dot" style="border-color: #f768a1;" title="LCMS_LEAF: 7 / 65"></span><span class="dot partial-dot" style="border-color: #dd3497;" title="LCMS_STEM: 7 / 65"></span><span class="dot partial-dot" style="border-color: #fdae6b;" title="NMR: 30 / 65"></span></td><td><span class="dot" style="background-color: #3f007d;" title="GCMS_HS: 60 / 60"></span><span class="dot partial-dot" style="border-color: #9e9ac8;" title="GCMS_LIQ: 58 / 60"></span><span class="dot pending-dot" title="LCMS_LEAF: 0 / 60"></span><span class="dot partial-dot" style="border-color: #dd3497;" title="LCMS_STEM: 5 / 60"></span><span class="dot" style="background-color: #fdae6b;" title="NMR: 20 / 60"></span></td></tr>
+<h2>Hemlock Sample Status (Live from Google Sheet)</h2>
+<table id="status-table">
+    <thead><tr><th>Timepoint</th><th>AA</th><th>PA</th></tr></thead>
+    <tbody></tbody>
 </table>
+
 <div style="margin-top: 30px; font-family: Arial, sans-serif; font-size: 13px;">
 <div><strong>Legend:</strong></div>
 <div style="margin: 6px 0 12px 0;">● = Completed  ○ = Partially Completed  <span class="dot pending-dot" style="vertical-align: middle;"></span> = Pending</div>
 <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
-<div style="display: flex; align-items: center; gap: 6px;">
-<span style="width: 90px;">GCMS_HS</span>
-<span class="dot" style="background-color: #3f007d;"></span>
-<span class="dot partial-dot" style="border-color: #3f007d;"></span>
-</div>
-<div style="display: flex; align-items: center; gap: 6px;">
-<span style="width: 90px;">GCMS_LIQ</span>
-<span class="dot" style="background-color: #9e9ac8;"></span>
-<span class="dot partial-dot" style="border-color: #9e9ac8;"></span>
-</div>
-<div style="display: flex; align-items: center; gap: 6px;">
-<span style="width: 90px;">LCMS_LEAF</span>
-<span class="dot" style="background-color: #f768a1;"></span>
-<span class="dot partial-dot" style="border-color: #f768a1;"></span>
-</div>
-<div style="display: flex; align-items: center; gap: 6px;">
-<span style="width: 90px;">LCMS_STEM</span>
-<span class="dot" style="background-color: #dd3497;"></span>
-<span class="dot partial-dot" style="border-color: #dd3497;"></span>
-</div>
-<div style="display: flex; align-items: center; gap: 6px;">
-<span style="width: 90px;">NMR</span>
-<span class="dot" style="background-color: #fdae6b;"></span>
-<span class="dot partial-dot" style="border-color: #fdae6b;"></span>
-</div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">GCMS_HS</span><span class="dot" style="background-color: #3f007d;"></span><span class="dot partial-dot" style="border-color: #3f007d;"></span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">GCMS_LIQ</span><span class="dot" style="background-color: #9e9ac8;"></span><span class="dot partial-dot" style="border-color: #9e9ac8;"></span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">LCMS_LEAF</span><span class="dot" style="background-color: #f768a1;"></span><span class="dot partial-dot" style="border-color: #f768a1;"></span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">LCMS_STEM</span><span class="dot" style="background-color: #dd3497;"></span><span class="dot partial-dot" style="border-color: #dd3497;"></span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">NMR</span><span class="dot" style="background-color: #fdae6b;"></span><span class="dot partial-dot" style="border-color: #fdae6b;"></span></div>
 </div>
 </div>
 
 <script>
-fetch("https://docs.google.com/spreadsheets/d/1KaFm5VWdDApw8d1aWp3cFfpMU0IfShcwLXxSWIZ-E6E/gviz/tq?tqx=out:csv")
-  .then(response => response.text())
-  .then(data => {
-    const rows = data.trim().split("\n").map(r => r.split(","));
-    console.log("Fetched Google Sheet Data:", rows);
+const colorMap = {
+    "GCMS_HS": "#3f007d",
+    "GCMS_LIQ": "#9e9ac8",
+    "LCMS_LEAF": "#f768a1",
+    "LCMS_STEM": "#dd3497",
+    "NMR": "#fdae6b"
+};
 
-    // You can replace this logic with actual DOM updates to your table
-    // Example: updateStatusTable(rows);
+fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vTfsBAqZc6V1Cm5vuuwblU5waymJqNFASrMZWfaY3uN0LACMT9Y0UGE3Wr1DQ4DIcOISWlPDt_CtR08/pub?output=csv")
+  .then(response => response.text())
+  .then(csv => {
+    const lines = csv.trim().split("\n").map(row => row.split(","));
+    const headers = lines.shift();
+    const [TIMEPOINT, LOCATION, ASSAY, COMPLETE, TOTAL] = headers;
+    const matrix = {};
+
+    for (const [tp, loc, assay, done, total] of lines) {
+        if (!matrix[tp]) matrix[tp] = { AA: [], PA: [] };
+        const complete = parseInt(done);
+        const required = parseInt(total);
+        let dot;
+        if (complete === 0) {
+            dot = `<span class='dot pending-dot' title='${assay}: 0 / ${required}'></span>`;
+        } else if (complete < required) {
+            dot = `<span class='dot partial-dot' style='border-color: ${colorMap[assay]}' title='${assay}: ${complete} / ${required}'></span>`;
+        } else {
+            dot = `<span class='dot' style='background-color: ${colorMap[assay]}' title='${assay}: ${complete} / ${required}'></span>`;
+        }
+        matrix[tp][loc].push(dot);
+    }
+
+    const tbody = document.querySelector("#status-table tbody");
+    for (const tp in matrix) {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${tp}</td><td>${matrix[tp].AA.join("")}</td><td>${matrix[tp].PA.join("")}</td>`;
+        tbody.appendChild(row);
+    }
   })
-  .catch(error => console.error("Failed to fetch sheet data:", error));
+  .catch(err => console.error("Failed to load data:", err));
 </script>
 </body>
 </html>
