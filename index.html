@@ -1,14 +1,17 @@
-
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>Hemlock Status (Matrix Sheet Format)</title>
+<title>Hemlock Status (Google Sheets)</title>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
-    table {
-        border-collapse: collapse;
+    body {
         font-family: Arial, sans-serif;
         font-size: 13px;
+        padding: 20px;
+    }
+    table {
+        border-collapse: collapse;
         margin-top: 20px;
     }
     th, td {
@@ -35,87 +38,333 @@
         border-width: 2px;
         border-style: solid;
     }
+    .control-buttons {
+        margin-top: 8px;
+    }
 </style>
 </head>
 <body>
-<h2>Hemlock Sample Status (Matrix Format)</h2>
-<table id="status-table">
-    <thead><tr><th>Timepoint</th><th>AA</th><th>PA</th></tr></thead>
-    <tbody></tbody>
-</table>
+<h2>Hemlock Sample Status (Live from Google Sheets)</h2>
 
-<div style="margin-top: 30px; font-family: Arial, sans-serif; font-size: 13px;">
-<div><strong>Legend:</strong></div>
-<div style="margin: 6px 0 12px 0;">● = Completed  ○ = Partially Completed  <span class="dot pending-dot" style="vertical-align: middle;"></span> = Pending</div>
-<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin-top: 10px;">
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">GCMS_HS</span><span class="dot" style="background-color: #3f007d;"></span><span class="dot partial-dot" style="border-color: #3f007d;"></span></div>
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">GCMS_LIQ</span><span class="dot" style="background-color: #9e9ac8;"></span><span class="dot partial-dot" style="border-color: #9e9ac8;"></span></div>
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">LCMS_LEAF</span><span class="dot" style="background-color: #f768a1;"></span><span class="dot partial-dot" style="border-color: #f768a1;"></span></div>
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">LCMS_STEM</span><span class="dot" style="background-color: #dd3497;"></span><span class="dot partial-dot" style="border-color: #dd3497;"></span></div>
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">NMR</span><span class="dot" style="background-color: #fdae6b;"></span><span class="dot partial-dot" style="border-color: #fdae6b;"></span></div>
-</div>
+<div id="export-area">
+  <table id="status-table">
+      <thead><tr><th>Timepoint</th><th>AA</th><th>PA</th></tr></thead>
+      <tbody></tbody>
+  </table>
+  <div style="margin-top: 20px;">
+    <div><strong>Legend:</strong></div>
+    <div style="margin: 6px 0 12px 0;">
+      ● = Completed  ○ = Partially Completed  <span class="dot pending-dot" style="vertical-align: middle;"></span> = Pending
+    </div>
+    <div class="control-buttons">
+      <button onclick="showLocationSummary()" style="padding: 6px 12px; margin-right: 8px;">📍 Location Summary</button>
+      <button onclick="showLocationAndTimeSummary()" style="padding: 6px 12px; margin-right: 8px;">📍🕒 Location + Time Summary</button>
+      <button onclick="exportAsImage()" style="padding: 6px 12px;">📷 Export Image</button>
+    </div>
+  </div>
+  <div id="global-summary" style="margin-top: 20px; font-size: 13px;"></div>
 </div>
 
 <script>
-const ASSAYS = ["GCMS_HS", "GCMS_LIQ", "LCMS_LEAF", "LCMS_STEM", "NMR"];
-const colorMap = {
-    "GCMS_HS": "#3f007d",
-    "GCMS_LIQ": "#9e9ac8",
-    "LCMS_LEAF": "#f768a1",
-    "LCMS_STEM": "#dd3497",
-    "NMR": "#fdae6b"
-};
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTfsBAqZc6V1Cm5vuuwblU5waymJqNFASrMZWfaY3uN0LACMT9Y0UGE3Wr1DQ4DIcOISWlPDt_CtR08/pub?output=csv";
 
-fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vTfsBAqZc6V1Cm5vuuwblU5waymJqNFASrMZWfaY3uN0LACMT9Y0UGE3Wr1DQ4DIcOISWlPDt_CtR08/pub?output=csv")
-  .then(response => response.text())
-  .then(csv => {
-    const lines = csv.trim().split("\n");
-    const delimiter = lines[0].includes("\t") ? "\t" : ",";
-    const parsed = lines.map(line => line.split(delimiter));
-    const headers = parsed.shift().map(h => h.trim());
+window.addEventListener("DOMContentLoaded", () => {
+  fetch(SHEET_CSV_URL)
+    .then(res => res.text())
+    .then(csv => renderTableFromCSV(csv));
+});
+    const ASSAYS = ["GCMS_HS", "GCMS_LIQ", "LCMS_LEAF", "LCMS_STEM", "NMR"];
+    const colorMap = {
+        "GCMS_HS": "#0c0887",
+        "GCMS_LIQ": "#5c01a6",
+        "LCMS_LEAF": "#a82296",
+        "LCMS_STEM": "#dd4968",
+        "NMR": "#f98c0a"
+    };
+    
+    let assayStats = {};
+    
+    document.getElementById("csvFile").addEventListener("change", function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+    
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            const csv = event.target.result;
+            renderTableFromCSV(csv);
+        };
+        reader.readAsText(file);
+    });
+    
+    function renderTableFromCSV(csv) {
+        const lines = csv.trim().split("\n");
+        const delimiter = lines[0].includes("\t") ? "\t" : ",";
+        const parsed = lines.map(line => line.split(delimiter));
+        const headers = parsed.shift().map(h => h.trim());
+    
+        const rawRows = [];
+        const allTPs = new Set();
+        const allLocs = new Set();
+    
+        assayStats = {};
+        ASSAYS.forEach(assay => {
+            assayStats[assay] = { completed: 0, partial: 0, pending: 0, total: 0 };
+        });
+    
+        for (const row of parsed) {
+            const tp = (row[0] || "").trim();
+            const loc = (row[1] || "").trim();
+    
+            if (!tp) continue;
+            const assays = ASSAYS.map((_, i) => (row[i + 2] || "").trim());
+            rawRows.push({ tp, loc, assays });
+    
+            allTPs.add(tp);
+            if (loc) allLocs.add(loc);
+        }
+    
+        const matrix = {};
+        for (const { tp, loc, assays } of rawRows) {
+            if (!loc) continue;
+            if (!matrix[tp]) matrix[tp] = {};
+            matrix[tp][loc] = assays.map((val, idx) => {
+                const name = ASSAYS[idx];
+                const color = colorMap[name];
+                val = val.toLowerCase();
+                if (val === "pending") {
+                    assayStats[name].pending++;
+                    assayStats[name].total++;
+                    return "<span class='dot pending-dot' title='" + name + ": pending'></span>";
+                } else if (val.includes("/")) {
+                    const [complete, total] = val.split("/").map(x => parseInt(x));
+                    assayStats[name].total++;
+                    if (complete === 0) {
+                        assayStats[name].pending++;
+                        return "<span class='dot pending-dot' title='" + name + ": 0 / " + total + "'></span>";
+                    } else if (complete < total) {
+                        assayStats[name].partial++;
+                        return "<span class='dot partial-dot' style='border-color: " + color + "' title='" + name + ": " + complete + " / " + total + "'></span>";
+                    } else {
+                        assayStats[name].completed++;
+                        return "<span class='dot' style='background-color: " + color + "' title='" + name + ": " + complete + " / " + total + "'></span>";
+                    }
+                } else {
+                    return "<span class='dot' style='visibility: hidden;'></span>";
+                }
+            });
+        }
+    
+        const sortedTPs = Array.from(allTPs).sort((a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/)));
+        const locs = Array.from(allLocs).sort();
+    
+        const thead = document.querySelector("#status-table thead");
+        thead.innerHTML = "<tr><th>Timepoint</th>" + locs.map(loc => "<th>" + loc + "</th>").join("") + "</tr>";
+    
+        const tbody = document.querySelector("#status-table tbody");
+        tbody.innerHTML = "";
+    
+        for (const tp of sortedTPs) {
+            const row = document.createElement("tr");
+            const cells = locs.map(loc => {
+                const dots = matrix[tp]?.[loc];
+                return "<td>" + (dots ? dots.join("") : ASSAYS.map(() => "<span class='dot' style='visibility: hidden;'></span>").join("")) + "</td>";
+            });
+            row.innerHTML = "<td>" + tp + "</td>" + cells.join("");
+            tbody.appendChild(row);
+        }
+        updateLocationSummaryDetailed(rawRows);
+        updateLocationAndTimeSummary(rawRows);
+    }
+    
+   // ... 保留前面原有脚本内容 ...
 
-    const TIMEPOINT = headers[0];
-    const LOCATION = headers[1];
+function updateLocationSummaryDetailed(rawRows) {
+    const locationStats = {};
 
-    const tbody = document.querySelector("#status-table tbody");
-
-    const matrix = {};
-
-    for (const row of parsed) {
-        if (row.length < 2) continue;
-        const tp = row[0].trim();
-        const loc = row[1].trim();
-        const assays = ASSAYS.map((assay, i) => (row[i + 2] || "").trim());
-
-        if (!matrix[tp]) matrix[tp] = { AA: [], PA: [] };
+    for (const { loc, assays } of rawRows) {
+        if (!loc) continue;
+        if (!locationStats[loc]) {
+            locationStats[loc] = {
+                total: 0,
+                completed: 0,
+                assays: {}
+            };
+            ASSAYS.forEach(assay => {
+                locationStats[loc].assays[assay] = { total: 0, completed: 0 };
+            });
+        }
 
         assays.forEach((val, idx) => {
-            const name = ASSAYS[idx];
-            const color = colorMap[name];
-            let dot = "<span class='dot' style='visibility: hidden;'></span>";
-            if (val.toLowerCase() === "pending") {
-                dot = `<span class='dot pending-dot' title='${name}: pending'></span>`;
-            } else if (val.includes("/")) {
-                const [complete, total] = val.split("/").map(x => parseInt(x));
-                if (complete === 0) {
-                    dot = `<span class='dot pending-dot' title='${name}: 0 / ${total}'></span>`;
-                } else if (complete < total) {
-                    dot = `<span class='dot partial-dot' style='border-color: ${color}' title='${name}: ${complete} / ${total}'></span>`;
-                } else {
-                    dot = `<span class='dot' style='background-color: ${color}' title='${name}: ${complete} / ${total}'></span>`;
+            const assayName = ASSAYS[idx];
+            val = val.trim().toLowerCase();
+
+            if (val.includes("/")) {
+                const [done, all] = val.split("/").map(x => parseInt(x));
+                if (!isNaN(done) && !isNaN(all)) {
+                    locationStats[loc].total += all;
+                    locationStats[loc].completed += done;
+
+                    locationStats[loc].assays[assayName].total += all;
+                    locationStats[loc].assays[assayName].completed += done;
+                }
+            } else if (val === "pending") {
+                locationStats[loc].total += 1;
+                locationStats[loc].assays[assayName].total += 1;
+            } else {
+                const fallbackTotal = assays
+                    .map(v => v.includes("/") ? parseInt(v.split("/")[1]) : null)
+                    .filter(x => x && !isNaN(x));
+                const guessTotal = fallbackTotal.length > 0 ? Math.max(...fallbackTotal) : 0;
+                if (guessTotal > 0) {
+                    locationStats[loc].assays[assayName].total += guessTotal;
                 }
             }
-            matrix[tp][loc].push(dot);
         });
     }
 
-    for (const tp in matrix) {
-        const row = document.createElement("tr");
-        row.innerHTML = `<td>${tp}</td><td>${matrix[tp].AA.join("")}</td><td>${matrix[tp].PA.join("")}</td>`;
-        tbody.appendChild(row);
+    const container = document.getElementById("global-summary");
+
+    const wrapperId = "loc-summary";
+    let wrapper = document.getElementById(wrapperId);
+    if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.id = wrapperId;
+        wrapper.style.display = "none";
+        container.appendChild(wrapper);
     }
-  })
-  .catch(err => console.error("Failed to load matrix data:", err));
-</script>
-</body>
-</html>
+
+    wrapper.innerHTML = "<h3>\ud83d\udccd Location Summary (Detailed)</h3>";
+
+    for (const loc in locationStats) {
+        const locStat = locationStats[loc];
+        const locRemaining = locStat.total - locStat.completed;
+        wrapper.innerHTML += "<p><b>" + loc + "</b> — Total: " + locStat.total + ", Completed: " + locStat.completed + ", Remaining: " + locRemaining + "</p><ul style='padding-left: 20px;'>";
+
+        for (const assay of ASSAYS) {
+            const a = locStat.assays[assay];
+            const remaining = a.total - a.completed;
+            wrapper.innerHTML += "<li>" + assay + " — " + a.completed + " / " + a.total + " (Remaining: " + remaining + ")</li>";
+        }
+
+        wrapper.innerHTML += "</ul><hr style='margin: 16px 0;'>";
+    }
+}
+
+function showLocationSummary() {
+    const section = document.getElementById("loc-summary");
+    if (!section) return;
+    if (section.style.display === "none") {
+        section.style.display = "block";
+    } else {
+        section.style.display = "none";
+    }
+}
+
+
+function updateLocationAndTimeSummary(rawRows) {
+    const stats = {};
+
+    for (const { tp, loc, assays } of rawRows) {
+        if (!tp || !loc) continue;
+
+        // Check if this row has at least one valid (non-empty) assay
+        const hasData = assays.some(v => v.trim() !== "");
+        if (!hasData) continue;
+
+        if (!stats[tp]) stats[tp] = {};
+        if (!stats[tp][loc]) {
+            stats[tp][loc] = {};
+            ASSAYS.forEach(assay => {
+                stats[tp][loc][assay] = { total: 0, completed: 0 };
+            });
+        }
+
+        assays.forEach((val, idx) => {
+            const assayName = ASSAYS[idx];
+            val = val.trim().toLowerCase();
+
+            if (val.includes("/")) {
+                const [done, all] = val.split("/").map(x => parseInt(x));
+                if (!isNaN(done) && !isNaN(all)) {
+                    stats[tp][loc][assayName].total += all;
+                    stats[tp][loc][assayName].completed += done;
+                }
+            } else if (val === "pending") {
+                stats[tp][loc][assayName].total += 1;
+            } else {
+                const fallbackTotal = assays
+                    .map(v => v.includes("/") ? parseInt(v.split("/")[1]) : null)
+                    .filter(x => x && !isNaN(x));
+                const guessTotal = fallbackTotal.length > 0 ? Math.max(...fallbackTotal) : 0;
+                if (guessTotal > 0) {
+                    stats[tp][loc][assayName].total += guessTotal;
+                }
+            }
+        });
+    }
+
+    const container = document.getElementById("global-summary");
+
+    const wrapperId = "tp-loc-summary";
+    let wrapper = document.getElementById(wrapperId);
+    if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.id = wrapperId;
+        wrapper.style.display = "none";
+        container.appendChild(wrapper);
+    }
+
+    wrapper.innerHTML = "<h3>\ud83d\udccd\u23f0 Location + Time Summary</h3>";
+
+    const sortedTPs = Object.keys(stats).sort((a, b) => parseInt(a.match(/\d+/)) - parseInt(b.match(/\d+/)));
+
+    for (const tp of sortedTPs) {
+        wrapper.innerHTML += "<p><b>" + tp + "</b></p>";
+        const locs = Object.keys(stats[tp]).sort();
+        for (const loc of locs) {
+            const anyData = ASSAYS.some(a => stats[tp][loc][a].total > 0);
+            if (!anyData) continue;
+
+            wrapper.innerHTML += "<div style='margin-left: 10px;'><b>• " + loc + "</b><ul style='padding-left: 20px;'>";
+            for (const assay of ASSAYS) {
+                const a = stats[tp][loc][assay];
+                const remaining = a.total - a.completed;
+                wrapper.innerHTML += "<li>" + assay + " — " + a.completed + " / " + a.total + " (Remaining: " + remaining + ")</li>";
+            }
+            wrapper.innerHTML += "</ul></div>";
+        }
+    }
+}
+
+function showLocationAndTimeSummary() {
+    const section = document.getElementById("tp-loc-summary");
+    if (!section) return;
+    if (section.style.display === "none") {
+        section.style.display = "block";
+    } else {
+        section.style.display = "none";
+    }
+}
+
+function exportAsImage() {
+    const area = document.getElementById("export-area");
+    if (!area) return;
+    html2canvas(area).then(canvas => {
+        const link = document.createElement("a");
+        link.download = "hemlock_status_summary.png";
+        link.href = canvas.toDataURL();
+        link.click();
+    });
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+    const exportButton = document.createElement("button");
+    exportButton.textContent = "📷 Export Image";
+    exportButton.style.padding = "6px 12px";
+    exportButton.style.marginLeft = "8px";
+    exportButton.onclick = exportAsImage;
+    document.querySelector("div[style*='margin-top: 10px']")?.appendChild(exportButton);
+});
+  
+    </script>
+    
