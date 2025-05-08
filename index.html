@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>Hemlock Sample Status (Fixed Assay Slots)</title>
+<title>Hemlock Sample Status (Robust Parser)</title>
 <style>
     table {
         border-collapse: collapse;
@@ -37,7 +38,7 @@
 </style>
 </head>
 <body>
-<h2>Hemlock Sample Status (Fixed 5 Assay Dots)</h2>
+<h2>Hemlock Sample Status (Robust Parsing)</h2>
 <table id="status-table">
     <thead><tr><th>Timepoint</th><th>AA</th><th>PA</th></tr></thead>
     <tbody></tbody>
@@ -46,13 +47,6 @@
 <div style="margin-top: 30px; font-family: Arial, sans-serif; font-size: 13px;">
 <div><strong>Legend:</strong></div>
 <div style="margin: 6px 0 12px 0;">● = Completed  ○ = Partially Completed  <span class="dot pending-dot" style="vertical-align: middle;"></span> = Pending</div>
-<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">GCMS_HS</span><span class="dot" style="background-color: #3f007d;"></span><span class="dot partial-dot" style="border-color: #3f007d;"></span></div>
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">GCMS_LIQ</span><span class="dot" style="background-color: #9e9ac8;"></span><span class="dot partial-dot" style="border-color: #9e9ac8;"></span></div>
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">LCMS_LEAF</span><span class="dot" style="background-color: #f768a1;"></span><span class="dot partial-dot" style="border-color: #f768a1;"></span></div>
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">LCMS_STEM</span><span class="dot" style="background-color: #dd3497;"></span><span class="dot partial-dot" style="border-color: #dd3497;"></span></div>
-    <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 90px;">NMR</span><span class="dot" style="background-color: #fdae6b;"></span><span class="dot partial-dot" style="border-color: #fdae6b;"></span></div>
-</div>
 </div>
 
 <script>
@@ -68,12 +62,17 @@ const colorMap = {
 fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vTfsBAqZc6V1Cm5vuuwblU5waymJqNFASrMZWfaY3uN0LACMT9Y0UGE3Wr1DQ4DIcOISWlPDt_CtR08/pub?output=csv")
   .then(response => response.text())
   .then(csv => {
-    const lines = csv.trim().split("\\n").map(row => row.split(","));
-    const headers = lines.shift();
-    const [TIMEPOINT, LOCATION, ASSAY, COMPLETE, TOTAL] = headers;
+    const lines = csv.trim().split("\n");
+    const delimiter = lines[0].includes("\t") ? "\t" : ",";
+
+    const parsed = lines.map(line => line.split(delimiter));
+    const headers = parsed.shift();
+    const [TIMEPOINT, LOCATION, ASSAY, COMPLETE, TOTAL] = headers.map(h => h.trim());
     const matrix = {};
 
-    for (const [tp, loc, assay, done, total] of lines) {
+    for (const row of parsed) {
+        if (row.length < 5) continue;
+        const [tp, loc, assay, done, total] = row.map(v => v.trim());
         if (!matrix[tp]) matrix[tp] = { AA: {}, PA: {} };
         matrix[tp][loc][assay] = { complete: parseInt(done), total: parseInt(total) };
     }
