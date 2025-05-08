@@ -82,10 +82,10 @@ fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vTfsBAqZc6V1Cm5vuuwblU5wa
     const matrix = {};
 
     for (const row of parsed) {
-        if (row.length < 3) continue;
+        if (row.length < 2) continue;
         const tp = row[0].trim();
         const loc = row[1].trim();
-        const assays = ASSAYS.map((assay, i) => row[i + 2] ? row[i + 2].trim() : "");
+        const assays = ASSAYS.map((assay, i) => (row[i + 2] || "").trim());
 
         if (!matrix[tp]) matrix[tp] = { AA: [], PA: [] };
 
